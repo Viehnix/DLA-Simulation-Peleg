@@ -11,11 +11,11 @@ import random
 # Params
 #-------------------------------------------------------------------------------
 width, height = 500, 500            # Roomsize
-num_particles = 400                 # Number of particles
-mean_radius = 7                     # Mean value of particle radius
-std_dev_radius = 3                  # Standard deviation of radius
-mean_speed = 12                     # Mean value of particle speed
-std_dev_speed = 3                   # Standard deviation of set speed
+num_particles = 700                 # Number of particles
+mean_radius = 5                     # Mean value of particle radius
+std_dev_radius = 2                  # Standard deviation of radius
+mean_speed = 8                      # Mean value of particle speed
+std_dev_speed = 2                   # Standard deviation of set speed
 center = (width // 2, height // 2)  # Starting point of the first particle
 #-------------------------------------------------------------------------------
 
@@ -110,8 +110,8 @@ def check_collision_with_centers(particle):
     for center_particle in fixed_centers:
         dist = distance(particle, center_particle)  
         min_dist = particle['radius'] + center_particle['radius']
-        if dist < min_dist:              # If the distance is less than the combined radii, a collision occurs
-            return True, center_particle  # Return True and colliding center
+        if dist < min_dist:                         # If the distance is less than the combined radii, a collision occurs
+            return True, center_particle            # Return True and colliding center
     return False, None                              # No collision detected
 #-------------------------------------------------------------------------------
 
@@ -125,16 +125,15 @@ def move_particles():
 # @return  list:
 #            Returns updated list of moving particles after considering all collisions and boundary reflections.
 #-------------------------------------------------------------------------------
-    new_moving_particles = []  # List for the new positions of the particles
+    new_moving_particles = []                       # List for the new positions of the particles
     for p in moving_particles:
-        # Calculate future position
         future_x = p['x'] + p['dx']
         future_y = p['y'] + p['dy']
 
         # Check if particle collides with any fixed center
         collision, collided_center = check_collision_with_centers(p)
         
-        if collision:  # Set particle to the valid distance from the center and add particle to list of fixed centers
+        if collision:                               # Set particle to the valid distance from the center and add particle to list of fixed centers
             move_particle_to_distance(p, collided_center)
             fixed_centers.append({'x': p['x'], 'y': p['y'], 'radius': p['radius']})
             continue
@@ -163,48 +162,49 @@ def move_particles():
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
-def calculate_fractal_dimension(positions, max_box_size=50):
+def calculate_fractal_dimension(positions, grid_sizes=[20, 10, 5, 2]):
 #-------------------------------------------------------------------------------
 # @brief   Calculates the fractal dimension using the Box-Counting method.
-#          The method divides the space into smaller boxes of different sizes and 
-#          counts how many boxes contain at least one particle. The fractal 
-#          dimension is estimated by fitting a power law to the count of boxes
-#          as a function of the box size.
+#          The method divides the space into smaller boxes of different sizes 
+#          and counts how many boxes contain at least one particle. The fractal 
+#          dimension is estimated by fitting a power law to the number of occupied 
+#          boxes as a function of the box size.
 #
 # @param   positions:
-#            (list of tuples) The list of particle positions as (x, y) pairs.
-#          max_box_size:
-#            (int) The maximum size of the boxes to be used in the Box-Counting method.
+#            (list of tuples) A list of particle positions as (x, y) coordinate pairs.
+#          grid_sizes:
+#            (list of int) The different grid divisions to be used for the Box-Counting method.
+#            The actual box size is calculated as width // grid_size.
 #
 # @return  float:
 #            The estimated fractal dimension based on the Box-Counting method.
+#
+# @source   https://fractalfoundation.org/OFC/OFC-10-5.html
+#           https://www.sciencedirect.com/science/article/pii/S2590123020300128
 #-------------------------------------------------------------------------------
-    box_counts = []  # List to store the number of boxes for each box size
+    box_counts = []                     # List to store the number of occupied boxes
+    box_sizes = []                      # List to store the actual box sizes
 
-    for box_size in range(1, max_box_size):
-        boxes = set()  # Use a set to store unique boxes
-        
-        # Count how many distinct boxes particles are in for current box size
+    for grid_size in grid_sizes:
+        box_size = width // grid_size   # Calculate the box size for the current grid
+        boxes = set()                   # Set to store occupied boxes
+
         for p in positions:
-            box_x = int(p[0] // box_size)
-            box_y = int(p[1] // box_size)
-            boxes.add((box_x, box_y))
-        
-        # Store number of unique boxes for current size
-        box_counts.append(len(boxes))
-    
-    # Convert counts to numpy array and compute log of box sizes and counts
-    box_counts = np.array(box_counts)
-    sizes = np.arange(1, max_box_size)
+            box_x = p[0] // box_size
+            box_y = p[1] // box_size
+            boxes.add((box_x, box_y))   # Add the occupied box to the set
+
+        box_counts.append(len(boxes))   # Store the number of occupied boxes
+        box_sizes.append(box_size)      # Store the current box size
+
+    # Calculate logarithms for log-log regression
     log_counts = np.log(box_counts)
-    log_sizes = np.log(sizes)
-    
-    # Perform linear regression on log-log data to estimate the fractal dimension
+    log_sizes = np.log(box_sizes)
+
+    # Perform linear regression (slope of the line is the fractal dimension)
     fit = np.polyfit(log_sizes, log_counts, 1)
-    
-    # The slope of the regression gives the fractal dimension
-    fractal_dimension = -fit[0]
-    
+    fractal_dimension = -fit[0]         # The slope of the line gives the fractal dimension
+
     return fractal_dimension
 #-------------------------------------------------------------------------------
 
@@ -243,6 +243,7 @@ def plot_particles():
     plt.text(10, -height // 10, f"Fractal Dimension: {fractal_dimension:.3f}", fontsize=12, color='black', va='top')
     plt.text(10, height + height // 10, f"Fixed Particles: {total_particles - 1}", fontsize=12, color='black', va='top')
     plt.text(10, height + height // 20, f"Moving Particles: {moving_particles_count}", fontsize=12, color='black', va='top')
+    plt.text(width - width // 4, height + height // 20, f"Steps: {steps}", fontsize=12, color='black', va='top')
 
     plt.draw()                                       # Update the plot
     plt.pause(0.05)                                  # Pause for animation effect
@@ -254,10 +255,9 @@ def plot_particles():
 #-------------------------------------------------------------------------------
 # Initialization
 #-------------------------------------------------------------------------------
-
-# Lists to store moving and fixed particles
-moving_particles = []  # List to store moving particles
-fixed_centers = []  # List to store fixed center particles
+moving_particles = []                               # List to store moving particles
+fixed_centers = []                                  # List to store fixed center particles
+steps = 0
 
 # Add the first particle at the center with zero velocity
 moving_particles.append({'x': center[0], 'y': center[1], 'dx': 0, 'dy': 0, 'radius': mean_radius})
@@ -276,13 +276,10 @@ for i in range(num_particles):
 #-------------------------------------------------------------------------------
 # Simulation
 #-------------------------------------------------------------------------------
-plt.ion()  # Interactive mode for dynamic plotting
-fig = plt.figure(num="DLA Simulation")  # Create a figure window for the simulation
-
-# Run simulation as long as the figure window exists
+fig = plt.figure(num="DLA Simulation")
 while plt.fignum_exists(fig.number):
-    moving_particles = move_particles()  # Move the particles
-    plot_particles()  # Plot the updated particle positions
-#-------------------------------------------------------------------------------
-
+    steps += 1
+    moving_particles = move_particles() 
+    plot_particles()
 plt.show()
+#-------------------------------------------------------------------------------
