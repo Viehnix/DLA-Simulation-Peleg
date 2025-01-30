@@ -278,7 +278,8 @@ for i in range(num_particles):
 #-------------------------------------------------------------------------------
 fig = plt.figure(num="DLA Simulation")
 while plt.fignum_exists(fig.number):
-    steps += 1
+    if len(moving_particles) > 0:
+        steps += 1
     moving_particles = move_particles() 
     plot_particles()
 plt.show()
